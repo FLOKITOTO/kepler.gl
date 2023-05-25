@@ -1,4 +1,4 @@
-// Copyright (c) 2022 Uber Technologies, Inc.
+// Copyright (c) 2023 Uber Technologies, Inc.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -24,10 +24,9 @@ import {
   getTooltipDisplayValue,
   getTooltipDisplayDeltaValue,
   TOOLTIP_MINUS_SIGN
-} from 'utils/interaction-utils';
-import {DEFAULT_TOOLTIP_FIELDS} from 'constants/default-settings';
+} from '@kepler.gl/reducers';
+import {DEFAULT_TOOLTIP_FIELDS, COMPARE_TYPES} from '@kepler.gl/constants';
 import {StateWTooltipFormat, testGeoJsonDataId} from 'test/helpers/mock-state';
-import {COMPARE_TYPES} from 'constants/tooltip';
 
 const fields = [
   {
@@ -141,7 +140,8 @@ test('interactionUtil -> getTooltipDisplayDeltaValue', t => {
     {
       input: {
         primaryData: dataset.dataContainer.row(0),
-        field: dataset.fields[testFieldIdx],
+        // field.displayFormat has been used to replace tooltipConfig.format
+        field: {...dataset.fields[testFieldIdx], displayFormat: item.format},
         compareType: COMPARE_TYPES.ABSOLUTE,
         data: dataset.dataContainer.row(1),
         fieldIdx: testFieldIdx,
@@ -153,7 +153,7 @@ test('interactionUtil -> getTooltipDisplayDeltaValue', t => {
     {
       input: {
         primaryData: dataset.dataContainer.row(0),
-        field: dataset.fields[testFieldIdx],
+        field: {...dataset.fields[testFieldIdx], displayFormat: item.format},
         compareType: COMPARE_TYPES.RELATIVE,
         data: dataset.dataContainer.row(1),
         fieldIdx: testFieldIdx,
@@ -165,7 +165,7 @@ test('interactionUtil -> getTooltipDisplayDeltaValue', t => {
     {
       input: {
         primaryData: dataset.dataContainer.row(3),
-        field: dataset.fields[testFieldIdx],
+        field: {...dataset.fields[testFieldIdx], displayFormat: item.format},
         compareType: COMPARE_TYPES.ABSOLUTE,
         data: dataset.dataContainer.row(1),
         fieldIdx: testFieldIdx,
@@ -177,7 +177,7 @@ test('interactionUtil -> getTooltipDisplayDeltaValue', t => {
     {
       input: {
         primaryData: dataset.dataContainer.row(0),
-        field: dataset.fields[testFieldIdx],
+        field: {...dataset.fields[testFieldIdx], displayFormat: item.format},
         compareType: COMPARE_TYPES.ABSOLUTE,
         data: dataset.dataContainer.row(3),
         fieldIdx: testFieldIdx,
@@ -189,7 +189,7 @@ test('interactionUtil -> getTooltipDisplayDeltaValue', t => {
     {
       input: {
         primaryData: dataset.dataContainer.row(4),
-        field: dataset.fields[testFieldIdx],
+        field: {...dataset.fields[testFieldIdx], displayFormat: item.format},
         compareType: COMPARE_TYPES.ABSOLUTE,
         data: dataset.dataContainer.row(3),
         fieldIdx: testFieldIdx,
@@ -231,15 +231,18 @@ test('interactionUtil -> getTooltipDisplayValue', t => {
   ];
 
   TEST_CASES.forEach(tc => {
-    const field = dataset.fields.find(f => f.name === tc.input.name);
+    // field.displayFormat has been used to replace tooltipConfig.format
+    const field = {
+      ...dataset.fields.find(f => f.name === tc.input.name),
+      displayFormat: tc.input.format
+    };
     const fieldIdx = dataset.fields.findIndex(f => f.name === tc.input.name);
 
     t.deepEqual(
       dataset.dataContainer.map(data =>
         getTooltipDisplayValue({
           field,
-          data,
-          fieldIdx,
+          value: data.valueAt(fieldIdx),
           item: tc.input
         })
       ),

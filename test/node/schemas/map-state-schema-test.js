@@ -1,4 +1,4 @@
-// Copyright (c) 2022 Uber Technologies, Inc.
+// Copyright (c) 2023 Uber Technologies, Inc.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -20,7 +20,7 @@
 
 import test from 'tape';
 import cloneDeep from 'lodash.clonedeep';
-import SchemaManager from 'schemas';
+import SchemaManager from '@kepler.gl/schemas';
 import {InitialState} from 'test/helpers/mock-state';
 
 test('#mapStateSchema -> v1 -> save load mapState', t => {
@@ -33,7 +33,18 @@ test('#mapStateSchema -> v1 -> save load mapState', t => {
 
   t.deepEqual(
     Object.keys(msToSave),
-    ['bearing', 'dragRotate', 'latitude', 'longitude', 'pitch', 'zoom', 'isSplit'],
+    [
+      'bearing',
+      'dragRotate',
+      'latitude',
+      'longitude',
+      'pitch',
+      'zoom',
+      'isSplit',
+      'isViewportSynced',
+      'isZoomLocked',
+      'splitMapViewports'
+    ],
     'mapState should have all 6 entries'
   );
 
@@ -44,7 +55,10 @@ test('#mapStateSchema -> v1 -> save load mapState', t => {
     longitude: -122.34679,
     zoom: 9,
     dragRotate: false,
-    isSplit: false
+    isSplit: false,
+    isViewportSynced: true,
+    isZoomLocked: false,
+    splitMapViewports: []
   };
 
   t.deepEqual(msToSave, expected, 'save mapState should be current');

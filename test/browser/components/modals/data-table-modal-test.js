@@ -1,4 +1,4 @@
-// Copyright (c) 2022 Uber Technologies, Inc.
+// Copyright (c) 2023 Uber Technologies, Inc.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -23,26 +23,33 @@ import test from 'tape-catch';
 import global from 'global';
 import sinon from 'sinon';
 import flatten from 'lodash.flattendeep';
-import {mountWithTheme} from 'test/helpers/component-utils';
+import {IntlWrapper, mountWithTheme} from 'test/helpers/component-utils';
 import CloneDeep from 'lodash.clonedeep';
-import * as VisStateActions from 'actions/vis-state-actions';
-import visStateReducer from 'reducers/vis-state';
+import {VisStateActions} from '@kepler.gl/actions';
+import {visStateReducer} from '@kepler.gl/reducers';
 
-import FieldTokenFactory from 'components/common/field-token';
-import {VertThreeDots, ArrowUp} from 'components/common/icons';
-import DataTableModalFactory, {
+import {TOOLTIP_FORMATS} from '@kepler.gl/constants';
+import {
+  FieldTokenFactory,
+  Icons,
+  DataTableModalFactory,
   DatasetTabs,
-  DatasetModalTab
-} from 'components/modals/data-table-modal';
-import DataTableFactory from 'components/common/data-table';
-import OptionDropdown from 'components/common/data-table/option-dropdown';
+  DatasetModalTab,
+  DataTableFactory,
+  OptionDropdown,
+  appInjector,
+  DropdownList,
+  InputLight,
+  DataTableConfigFactory,
+  NumberFormatConfig
+} from '@kepler.gl/components';
 import {testFields, testAllData} from 'test/fixtures/test-csv-data';
 import {geoStyleFields, geoStyleRows} from 'test/fixtures/geojson';
 import {StateWFiles, testCsvDataId, testGeoJsonDataId} from 'test/helpers/mock-state';
-import {appInjector} from '../../../../src/components/container';
 
-import {createDataContainer} from 'utils/table-utils';
+import {createDataContainer, getFieldFormatLabels} from '@kepler.gl/utils';
 
+const {VertThreeDots} = Icons;
 const DataTableModal = appInjector.get(DataTableModalFactory);
 const DataTable = appInjector.get(DataTableFactory);
 const FieldToken = appInjector.get(FieldTokenFactory);
@@ -54,7 +61,7 @@ const expectedCellSizeCache = {
   'gps_data.types': {row: 125, header: 123},
   epoch: {row: 121, header: 90},
   has_result: {row: 75, header: 99},
-  id: {row: 75, header: 90},
+  uid: {row: 75, header: 90},
   time: {row: 180, header: 90},
   begintrip_ts_utc: {row: 182, header: 129},
   begintrip_ts_local: {row: 182, header: 137},
@@ -63,19 +70,19 @@ const expectedCellSizeCache = {
 
 const expectedExpandedCellSize = {
   cellSizeCache: {
-    'gps_data.utc_timestamp': 145,
-    'gps_data.lat': 96,
-    'gps_data.lng': 96,
+    'gps_data.utc_timestamp': 160,
+    'gps_data.lat': 108,
+    'gps_data.lng': 110,
     'gps_data.types': 125,
     epoch: 121,
-    has_result: 75,
-    id: 75,
+    has_result: 99,
+    uid: 90,
     time: 180,
     begintrip_ts_utc: 182,
     begintrip_ts_local: 182,
-    date: 95
+    date: 143
   },
-  ghost: undefined
+  ghost: null
 };
 
 // This is to Mock Canvas.measureText response which we will not be testing
@@ -127,6 +134,100 @@ function restoreMockCanvas() {
   global.window.HTMLCanvasElement.prototype.getContext = oldGetContext;
 }
 
+// eslint-disable-next-line max-statements
+test('Compnents -> DataTableConfig', t => {
+  const expectedColumns = ['gps_data.utc_timestamp'];
+
+  const expectedColMeta = {
+    'gps_data.utc_timestamp': {
+      name: 'gps_data.utc_timestamp',
+      type: 'timestamp',
+      format: 'YYYY-M-D H:m:s'
+    }
+  };
+
+  const columns = expectedColumns;
+  const colMeta = expectedColMeta;
+  const setColumnDisplayFormat = sinon.spy();
+  const onClose = sinon.spy();
+
+  const DataTableConfig = DataTableConfigFactory();
+  let wrapper;
+  t.doesNotThrow(() => {
+    wrapper = mountWithTheme(
+      <IntlWrapper>
+        <DataTableConfig
+          columns={columns}
+          colMeta={colMeta}
+          setColumnDisplayFormat={setColumnDisplayFormat}
+          onClose={onClose}
+        />
+      </IntlWrapper>
+    );
+  }, 'Show not fail without props');
+
+  const numberFormatConfigInput = wrapper.find(NumberFormatConfig);
+  t.equal(numberFormatConfigInput.length, 5, 'should render 5 NumberFormatConfig');
+
+  numberFormatConfigInput
+    .at(0)
+    .find(InputLight)
+    .simulate('click');
+
+  const formatDropdown = wrapper.find(DropdownList);
+  t.equal(formatDropdown.length, 1, 'should render 1 format dropdown');
+
+  const integerDisplayOptions = formatDropdown.at(0).props().options;
+
+  t.deepEqual(
+    integerDisplayOptions,
+    getFieldFormatLabels('integer'),
+    'should render integer type formats'
+  );
+
+  numberFormatConfigInput
+    .at(1)
+    .find(InputLight)
+    .simulate('click');
+
+  const floatDisplayOptions = wrapper
+    .find(DropdownList)
+    .at(1)
+    .props().options;
+
+  t.deepEqual(floatDisplayOptions, getFieldFormatLabels('real'), 'should render real type formats');
+
+  numberFormatConfigInput
+    .at(2)
+    .find(InputLight)
+    .simulate('click');
+
+  const timeDisplayOptions = wrapper
+    .find(DropdownList)
+    .at(2)
+    .props().options;
+
+  t.deepEqual(
+    timeDisplayOptions,
+    getFieldFormatLabels('timestamp'),
+    'should render time type formats'
+  );
+
+  numberFormatConfigInput
+    .at(3)
+    .find(InputLight)
+    .simulate('click');
+
+  const dateDisplayOptions = wrapper
+    .find(DropdownList)
+    .at(3)
+    .props().options;
+
+  t.deepEqual(dateDisplayOptions, getFieldFormatLabels('date'), 'should render date type formats');
+
+  t.end();
+});
+
 /* eslint-disable max-statements */
 test('Components -> DataTableModal.render: csv 1', t => {
   t.doesNotThrow(() => {
@@ -153,7 +254,7 @@ test('Components -> DataTableModal.render: csv 1', t => {
     'gps_data.types',
     'epoch',
     'has_result',
-    'id',
+    'uid',
     'time',
     'begintrip_ts_utc',
     'begintrip_ts_local',
@@ -161,17 +262,25 @@ test('Components -> DataTableModal.render: csv 1', t => {
   ];
 
   const expectedColMeta = {
-    'gps_data.utc_timestamp': {name: 'gps_data.utc_timestamp', type: 'timestamp'},
+    'gps_data.utc_timestamp': {
+      name: 'gps_data.utc_timestamp',
+      type: 'timestamp',
+      format: 'YYYY-M-D H:m:s'
+    },
     'gps_data.lat': {name: 'gps_data.lat', type: 'real'},
     'gps_data.lng': {name: 'gps_data.lng', type: 'real'},
     'gps_data.types': {name: 'gps_data.types', type: 'string'},
-    epoch: {name: 'epoch', type: 'timestamp'},
+    epoch: {name: 'epoch', type: 'timestamp', format: 'X'},
     has_result: {name: 'has_result', type: 'boolean'},
-    id: {name: 'id', type: 'integer'},
-    time: {name: 'time', type: 'timestamp'},
-    begintrip_ts_utc: {name: 'begintrip_ts_utc', type: 'timestamp'},
-    begintrip_ts_local: {name: 'begintrip_ts_local', type: 'timestamp'},
-    date: {name: 'date', type: 'date'}
+    uid: {name: 'uid', type: 'integer'},
+    time: {name: 'time', type: 'timestamp', format: 'YYYY-M-DTHH:mm:ss.SSSS'},
+    begintrip_ts_utc: {name: 'begintrip_ts_utc', type: 'timestamp', format: 'YYYY-M-D HH:mm:ssZZ'},
+    begintrip_ts_local: {
+      name: 'begintrip_ts_local',
+      type: 'timestamp',
+      format: 'YYYY-M-D HH:mm:ssZZ'
+    },
+    date: {name: 'date', type: 'date', format: 'YYYY-M-D'}
   };
 
   t.deepEqual(props.columns, expectedColumns, 'DataTable should have the correct props.columns');
@@ -254,7 +363,6 @@ test('Components -> DataTableModal -> render DataTable: csv 1', t => {
   const wrapper = mountWithTheme(
     <DataTableModal datasets={StateWFiles.visState.datasets} dataId={testCsvDataId} />
   );
-
   t.equal(wrapper.find(DataTable).length, 1, 'should render 1 DataTable');
 
   const props = wrapper
@@ -266,7 +374,7 @@ test('Components -> DataTableModal -> render DataTable: csv 1', t => {
   const enriched = {
     ...props,
     cellSizeCache: expectedCellSizeCache,
-    fixedWidth: 1300,
+    fixedWidth: 1500,
     fixedHeight: 800,
     theme: {}
   };
@@ -283,7 +391,7 @@ test('Components -> DataTableModal -> render DataTable: csv 1', t => {
 
   t.equal(
     wrapper2.find('.header-cell').length,
-    testFields.length,
+    testFields.length * 3,
     `should render ${testFields.length} headers`
   );
 
@@ -363,12 +471,21 @@ test('Components -> DataTableModal -> render DataTable: csv 1', t => {
   t.end();
 });
 
-test('Components -> DataTableModal -> render DataTable: sort and pin', t => {
+test('Components -> DataTableModal -> render DataTable: sort, pin and display format', t => {
   const initialState = CloneDeep(StateWFiles.visState);
+
+  // set display format
+  const formats = {
+    'gps_data.lat': TOOLTIP_FORMATS.DECIMAL_DECIMAL_FIXED_2.format
+  };
+  const nextState = visStateReducer(
+    initialState,
+    VisStateActions.setColumnDisplayFormat(testCsvDataId, formats)
+  );
 
   // sort column
   const nextState1 = visStateReducer(
-    initialState,
+    nextState,
     VisStateActions.sortTableColumn(testCsvDataId, 'gps_data.lat')
   );
 
@@ -410,7 +527,7 @@ test('Components -> DataTableModal -> render DataTable: sort and pin', t => {
     'gps_data.lng',
     'gps_data.types',
     'epoch',
-    'id',
+    'uid',
     'time',
     'begintrip_ts_utc',
     'begintrip_ts_local',
@@ -419,7 +536,7 @@ test('Components -> DataTableModal -> render DataTable: sort and pin', t => {
 
   t.equal(
     wrapper2.find('.header-cell').length,
-    testFields.length,
+    testFields.length * 3,
     `should render ${testFields.length} headers`
   );
 
@@ -443,7 +560,7 @@ test('Components -> DataTableModal -> render DataTable: sort and pin', t => {
     t.equal(
       wrapper2
         .find('.header-cell')
-        .at(i)
+        .at(i * 3)
         .find('.col-name__name')
         .text(),
       expectedHeaders[i],
@@ -451,23 +568,15 @@ test('Components -> DataTableModal -> render DataTable: sort and pin', t => {
     );
   });
 
-  t.equal(
-    wrapper2
-      .find('.header-cell')
-      .at(2)
-      .find(ArrowUp).length,
-    1,
-    'should render sort icon'
-  );
-
   t.end();
 });
 
-test('Components -> DatableModal -> sort/pin and copy should be called with the right params', t => {
+test('Components -> DatableModal -> sort/pin/copy and display format should be called with the right params', t => {
   const initialState = CloneDeep(StateWFiles.visState);
   const copyTableColumn = sinon.spy();
   const pinTableColumn = sinon.spy();
   const sortTableColumn = sinon.spy();
+  const setColumnDisplayFormat = sinon.spy();
   const column = 'gps_data.lat';
 
   const wrapper = mountWithTheme(
@@ -477,18 +586,21 @@ test('Components -> DatableModal -> sort/pin and copy should be called with the 
       copyTableColumn={copyTableColumn}
       pinTableColumn={pinTableColumn}
       sortTableColumn={sortTableColumn}
+      setColumnDisplayFormat={setColumnDisplayFormat}
     />
   );
 
   const {
     sortTableColumn: testSortColumn,
     pinTableColumn: testPinColumn,
-    copyTableColumn: testCopyColumn
+    copyTableColumn: testCopyColumn,
+    setColumnDisplayFormat: testSetColumnDisplayFormat
   } = wrapper.find('DataTable').props();
 
   testSortColumn(column);
   testPinColumn(column);
   testCopyColumn(column);
+  testSetColumnDisplayFormat({[column]: TOOLTIP_FORMATS.DECIMAL_DECIMAL_FIXED_2.format});
 
   t.equal(
     sortTableColumn.calledWith(testCsvDataId, column),
@@ -506,6 +618,14 @@ test('Components -> DatableModal -> sort/pin and copy should be called with the 
     copyTableColumn.calledWith(testCsvDataId, column),
     true,
     'should call copyTableColumn with dataId and column gps_data.lat'
+  );
+
+  t.equal(
+    setColumnDisplayFormat.calledWith(testCsvDataId, {
+      [column]: TOOLTIP_FORMATS.DECIMAL_DECIMAL_FIXED_2.format
+    }),
+    true,
+    'should call setColumnDisplayFormat with dataId, column gps_data.lat, and format'
   );
 
   t.end();
@@ -527,7 +647,11 @@ test('Components -> cellSize -> renderedSize', t => {
         smoothie: {
           id: 'smoothie',
           dataContainer,
-          fields,
+          fields: [
+            {name: testColumns[0], type: 'geojson', displayName: testColumns[0]},
+            {name: testColumns[1], type: 'real', displayName: testColumns[1]},
+            {name: testColumns[2], type: 'string', displayName: testColumns[2]}
+          ],
           color: [113, 113, 113]
         }
       }}
@@ -541,9 +665,9 @@ test('Components -> cellSize -> renderedSize', t => {
     .props();
 
   const expected = {
-    _geojson: {row: 400, header: 96},
-    'income level of people over 65': {row: 85, header: 150},
-    engagement: {row: 127, header: 115}
+    _geojson: {row: 500, header: 186},
+    'income level of people over 65': {row: 162, header: 223},
+    engagement: {row: 162, header: 186}
   };
 
   t.deepEqual(
@@ -559,13 +683,17 @@ test('Components -> cellSize -> renderedSize', t => {
 test('Components -> DataTableModal.render: csv 2', t => {
   const dataContainer = createDataContainer(geoStyleRows, {fields: geoStyleFields});
 
+  // manually set display format on the 5th field: radius (.2~e)
+  const fieldsWithDisplayFormat = geoStyleFields;
+  fieldsWithDisplayFormat[5].displayFormat = TOOLTIP_FORMATS.DECIMAL_SCIENTIFIC_FIXED_2.format;
+
   const wrapper = mountWithTheme(
     <DataTableModal
       datasets={{
         smoothie: {
           id: 'smoothie',
           dataContainer,
-          fields: geoStyleFields,
+          fields: fieldsWithDisplayFormat,
           color: [113, 113, 113],
           data: geoStyleRows
         }
@@ -595,14 +723,14 @@ test('Components -> DataTableModal.render: csv 2', t => {
 
   const expectedExpandedCellSizeGeo = {
     cellSizeCache: {
-      _geojson: 400,
+      _geojson: 410,
       fillColor: 90,
       lineColor: 94,
       lineWidth: 98,
       elevation: 94,
       radius: 90
     },
-    ghost: 334
+    ghost: 324
   };
   const wrapper2 = mountWithTheme(<DataTable {...enriched} />);
   const componentInstance = wrapper2.find('DataTable').instance();
@@ -613,7 +741,7 @@ test('Components -> DataTableModal.render: csv 2', t => {
   componentInstance.setState(result);
   wrapper2.update();
 
-  t.equal(wrapper2.find('.header-cell').length, 7, `should render 7 header cells`);
+  t.equal(wrapper2.find('.header-cell').length, 21, `should render 7 header cells`);
 
   // test header cell
   const expectedHeaders = [
@@ -628,7 +756,7 @@ test('Components -> DataTableModal.render: csv 2', t => {
 
   expectedHeaders.forEach((name, index) => {
     const header = wrapper2.find(`.header-cell.column-${index}`);
-    t.equal(header.length, 1, 'should render 1 header');
+    t.equal(header.length, 3, 'should render 1 header');
 
     if (index < 6) {
       const cellText = header.find('.col-name__name').text();
@@ -639,7 +767,7 @@ test('Components -> DataTableModal.render: csv 2', t => {
       t.equal(header.find(OptionDropdown).length, 1, 'should render OptionDropdown');
     } else {
       // if ghost cell
-      t.equal(header.text(), '', 'cell should be empty');
+      t.equal(header.at(2).text(), '', 'cell should be empty');
     }
   });
 
@@ -652,7 +780,7 @@ test('Components -> DataTableModal.render: csv 2', t => {
       '[4,5,6]\t',
       '1\t',
       '10\t',
-      '5\t',
+      '5e+0\t',
       '\n'
     ],
     1: [
@@ -661,7 +789,7 @@ test('Components -> DataTableModal.render: csv 2', t => {
       '[4,5,6]\t',
       '3\t',
       '10\t',
-      '5\t',
+      '5e+0\t',
       '\n'
     ],
     2: [
@@ -670,7 +798,7 @@ test('Components -> DataTableModal.render: csv 2', t => {
       '[4,5,6]\t',
       '4\t',
       '10\t',
-      '5\t',
+      '5e+0\t',
       '\n'
     ]
   };

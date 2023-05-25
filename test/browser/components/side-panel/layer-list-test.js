@@ -1,4 +1,4 @@
-// Copyright (c) 2022 Uber Technologies, Inc.
+// Copyright (c) 2023 Uber Technologies, Inc.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -20,16 +20,14 @@
 
 import React from 'react';
 import test from 'tape';
+import sinon from 'sinon';
 
 import {StateWMultiH3Layers} from 'test/helpers/mock-state';
 
-import * as VisStateActions from 'actions/vis-state-actions';
-import * as UIStateActions from 'actions/ui-state-actions';
+import {VisStateActions, UIStateActions} from '@kepler.gl/actions';
 
-import {appInjector} from 'components/container';
+import {appInjector, LayerListFactory} from '@kepler.gl/components';
 import {IntlWrapper, mountWithTheme} from 'test/helpers/component-utils';
-
-import LayerListFactory from 'components/side-panel/layer-panel/layer-list';
 
 const LayerList = appInjector.get(LayerListFactory);
 
@@ -98,6 +96,38 @@ test('Components -> SidePanel -> LayerPanel -> LayerList -> render non-sortable 
 
   const layers = wrapper.find('.layer-panel');
   t.equal(layers.length, 6, 'should render 6 layer panels');
+
+  t.end();
+});
+
+test('Components -> SidePanel -> LayerPanel -> LayerList -> pass null entries as layers', t => {
+  let wrapper;
+  const layers = [...defaultProps.layers];
+  layers[0] = null;
+  const removeLayerSpy = sinon.spy();
+  const visStateActions = {...defaultProps.visStateActions};
+  visStateActions.removeLayer = removeLayerSpy;
+  t.doesNotThrow(() => {
+    wrapper = mountWithTheme(
+      <IntlWrapper>
+        <LayerList
+          {...defaultProps}
+          isSortable={false}
+          layers={layers}
+          visStateActions={visStateActions}
+        />
+      </IntlWrapper>
+    );
+  }, 'LayerList should render');
+
+  t.equal(wrapper.find('LayerPanel').length, 1, 'should render 1 LayerPanel');
+
+  const removeLayer = wrapper.find(
+    'div.panel--header__action.layer__remove-layer svg.data-ex-icons-trash'
+  );
+
+  removeLayer.simulate('click');
+  t.equal(removeLayerSpy.called, true, 'Should have called remove layer when clicked');
 
   t.end();
 });

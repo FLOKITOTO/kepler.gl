@@ -1,4 +1,4 @@
-// Copyright (c) 2022 Uber Technologies, Inc.
+// Copyright (c) 2023 Uber Technologies, Inc.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -23,20 +23,20 @@
 import React from 'react';
 import sinon from 'sinon';
 import test from 'tape';
-import {IntlWrapper, mountWithTheme} from 'test/helpers/component-utils';
+import {IntlWrapper, mountWithTheme} from '../../../helpers/component-utils';
 
-import {MapControlButton} from 'components/common/styled-components';
-import ToolbarItem from 'components/common/toolbar-item';
-
-import {mapFieldsSelector} from 'components/kepler-gl';
 import {
+  MapControlButton,
+  ToolbarItem,
+  mapFieldsSelector,
   appInjector,
   MapLayerSelector,
   MapContainerFactory,
   MapLegendFactory,
   MapControlFactory,
-  MapControlToolbarFactory
-} from 'components';
+  MapControlToolbarFactory,
+  Icons
+} from '@kepler.gl/components';
 import {
   mockKeplerProps,
   mockKeplerPropsWithState,
@@ -44,12 +44,11 @@ import {
   StateWFiles
 } from '../../../helpers/mock-state';
 
-import {Cube3d, Split, Legend, DrawPolygon, Layers, Delete} from 'components/common/icons';
+import {LOCALE_CODES, LOCALES} from '@kepler.gl/localization';
+import {toggleMapControl} from '@kepler.gl/actions';
+import {keplerGlReducerCore} from '@kepler.gl/reducers';
 
-import {LOCALE_CODES, LOCALES} from 'localization';
-import {toggleMapControl} from 'actions';
-import {keplerGlReducerCore} from 'reducers';
-
+const {Cube3d, Split, Legend, DrawPolygon, Layers, Delete} = Icons;
 const MapControl = appInjector.get(MapControlFactory);
 const MapContainer = appInjector.get(MapContainerFactory);
 const MapLegend = appInjector.get(MapLegendFactory);
@@ -87,7 +86,8 @@ test('MapControlFactory - display options', t => {
     children: <MapContainer {...propsWithSplitMap} />
   });
 
-  t.equal(wrapper.find(MapControlButton).length, 6, 'Should show 6 MapControlButton');
+  // 5 control buttons as legend is opened automatically in split map mode
+  t.equal(wrapper.find(MapControlButton).length, 5, 'Should show 5 MapControlButton');
   t.equal(wrapper.find(Split).length, 0, 'Should show 0 split map split button');
   t.equal(wrapper.find(Delete).length, 1, 'Should show 1 split map delete button');
   t.equal(wrapper.find(Layers).length, 1, 'Should show 1 Layer button');
@@ -122,9 +122,10 @@ test('MapControlFactory - click options', t => {
     toggleMapControl: onToggleMapControl,
     setLocale: onSetLocale
   };
+  let updateState = keplerGlReducerCore(StateWSplitMaps, toggleMapControl('mapLegend', 0));
   const mapContainerProps = mapFieldsSelector(
     mockKeplerPropsWithState({
-      state: StateWSplitMaps,
+      state: updateState,
       visStateActions,
       mapStateActions,
       uiStateActions
@@ -138,10 +139,10 @@ test('MapControlFactory - click options', t => {
         <MapContainer {...mapContainerProps} />
       </IntlWrapper>
     );
-  }, 'MapCnotainer should not fail without props');
+  }, 'MapContainer should not fail without props');
 
   // layer selector is not active
-  t.equal(wrapper.find(MapControlButton).length, 6, 'Should show 5 MapControlButton');
+  t.equal(wrapper.find(MapControlButton).length, 6, 'Should show 6 MapControlButton');
 
   t.equal(wrapper.find(Delete).length, 1, 'Should show 1 delete split map button');
   // click split Map
@@ -184,7 +185,7 @@ test('MapControlFactory - click options', t => {
 
   // click locale
   wrapper
-    .find('.map-control-button.map-locale')
+    .find('.map-control-button.locale-panel')
     .at(0)
     .simulate('click');
   t.ok(onToggleMapControl.calledTwice, 'should call onToggleMapControl');
@@ -221,7 +222,7 @@ test('MapControlFactory - show panels', t => {
         <MapContainer {...mapContainerProps} />
       </IntlWrapper>
     );
-  }, 'MapCnotainer should not fail without props');
+  }, 'MapContainer should not fail without props');
 
   // show legend
   t.equal(wrapper.find(MapLegend).length, 1, 'should render 1 MapLegend');
@@ -271,8 +272,8 @@ test('MapControlFactory - show panels', t => {
       .find(MapControlToolbar)
       .at(0)
       .find(ToolbarItem).length,
-    4,
-    'should render 4 ToolbarItem'
+    3,
+    'should render 3 ToolbarItem'
   );
 
   // show locale

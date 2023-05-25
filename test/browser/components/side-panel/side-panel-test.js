@@ -1,4 +1,4 @@
-// Copyright (c) 2022 Uber Technologies, Inc.
+// Copyright (c) 2023 Uber Technologies, Inc.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -21,28 +21,30 @@
 import React from 'react';
 import test from 'tape';
 import sinon from 'sinon';
-import SidePanelFactory from 'components/side-panel';
-import SidebarFactory from 'components/side-panel/side-bar';
-import PanelHeaderFactory, {SaveExportDropdownFactory} from 'components/side-panel/panel-header';
-import LayerManagerFactory from 'components/side-panel/layer-manager';
-import FilterManagerFactory from 'components/side-panel/filter-manager';
-import InteractionManagerFactory from 'components/side-panel/interaction-manager';
-import MapManagerFactory from 'components/side-panel/map-manager';
-import PanelToggleFactory from 'components/side-panel/panel-toggle';
-import CustomPanelsFactory from 'components/side-panel/custom-panel';
+import {
+  SidePanelFactory,
+  SidebarFactory,
+  CollapseButtonFactory,
+  PanelHeaderFactory,
+  SaveExportDropdownFactory,
+  LayerManagerFactory,
+  FilterManagerFactory,
+  InteractionManagerFactory,
+  MapManagerFactory,
+  PanelToggleFactory,
+  CustomPanelsFactory,
+  ToolbarItem,
+  appInjector
+} from '@kepler.gl/components';
 
-import ToolbarItem from 'components/common/toolbar-item';
+import {VisStateActions, MapStyleActions, UIStateActions} from '@kepler.gl/actions';
 
-import * as VisStateActions from 'actions/vis-state-actions';
-import * as MapStyleActions from 'actions/map-style-actions';
-import * as UIStateActions from 'actions/ui-state-actions';
-
-import {appInjector} from 'components/container';
 import {IntlWrapper, mountWithTheme} from 'test/helpers/component-utils';
 
 // components
 const SidePanel = appInjector.get(SidePanelFactory);
 const Sidebar = appInjector.get(SidebarFactory);
+const SidebarCloseButton = appInjector.get(CollapseButtonFactory);
 const PanelHeader = appInjector.get(PanelHeaderFactory);
 const LayerManager = appInjector.get(LayerManagerFactory);
 const FilterManager = appInjector.get(FilterManagerFactory);
@@ -55,13 +57,14 @@ const SaveExportDropdown = appInjector.get(SaveExportDropdownFactory);
 import {InitialState} from 'test/helpers/mock-state';
 
 // Constants
-import {EXPORT_DATA_ID, EXPORT_MAP_ID, EXPORT_IMAGE_ID} from 'constants/default-settings';
+import {EXPORT_DATA_ID, EXPORT_MAP_ID, EXPORT_IMAGE_ID} from '@kepler.gl/constants';
 
 // default props from initial state
 const defaultProps = {
   datasets: InitialState.visState.datasets,
   filters: InitialState.visState.filters,
   layerBlending: InitialState.visState.layerBlending,
+  overlayBlending: InitialState.visState.overlayBlending,
   layerClasses: InitialState.visState.layerClasses,
   layerOrder: InitialState.visState.layerOrder,
   interactionConfig: InitialState.visState.interactionConfig,
@@ -89,6 +92,36 @@ test('Components -> SidePanel.mount -> no prop', t => {
   t.ok(wrapper.find(PanelHeader).length === 1, 'should render PanelHeader');
   t.ok(wrapper.find(PanelToggle).length === 1, 'should render PanelToggle');
   t.ok(wrapper.find(Sidebar).length === 1, 'should render Sidebar');
+
+  // side bar close button
+  t.ok(wrapper.find(SidebarCloseButton).length === 1, 'should render SideBarCollapseButton');
+
+  t.end();
+});
+
+test('Components -> SidePanel.mount -> hide CollapseButton', t => {
+  // mount
+  let wrapper;
+
+  const uiState = {
+    ...defaultProps.uiState,
+    isSidePanelCloseButtonVisible: false
+  };
+
+  t.doesNotThrow(() => {
+    wrapper = mountWithTheme(
+      <IntlWrapper>
+        <SidePanel {...defaultProps} uiState={uiState} />
+      </IntlWrapper>
+    );
+  }, 'SidePanel should not fail without props');
+
+  t.ok(wrapper.find(PanelHeader).length === 1, 'should render PanelHeader');
+  t.ok(wrapper.find(PanelToggle).length === 1, 'should render PanelToggle');
+  t.ok(wrapper.find(Sidebar).length === 1, 'should render Sidebar');
+
+  // side bar close button
+  t.ok(wrapper.find(SidebarCloseButton).length === 0, 'should not render SideBarCollapseButton');
 
   t.end();
 });

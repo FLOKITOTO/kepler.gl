@@ -1,4 +1,4 @@
-// Copyright (c) 2022 Uber Technologies, Inc.
+// Copyright (c) 2023 Uber Technologies, Inc.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -29,9 +29,11 @@ import {
   snapToMarks,
   arrayMove,
   getFormatter,
-  defaultFormatter
-} from 'utils/data-utils';
-import {ALL_FIELD_TYPES} from 'constants';
+  defaultFormatter,
+  formatNumber,
+  roundToFour
+} from '@kepler.gl/utils';
+import {ALL_FIELD_TYPES} from '@kepler.gl/constants';
 
 test('dataUtils -> clamp', t => {
   t.equal(clamp([0, 1], 2), 1, 'should clamp 2 to 1 for [0,1]');
@@ -48,6 +50,19 @@ test('dataUtils -> preciseRound', t => {
   t.equal(preciseRound(13, 2), '13.00', 'should round 13 correctly');
   t.equal(preciseRound(1.437, 2), '1.44', 'should round 1.437 correctly');
   t.equal(preciseRound(0.09999999999999987, 8), '0.10000000', 'should round 0.10000000 correctly');
+  t.end();
+});
+
+test('dataUtils -> roundToFour', t => {
+  t.equal(roundToFour(1.2344), 1.2344, 'should round 1.2344 to 4 decimals correctly');
+  t.equal(roundToFour(13.23445), 13.2345, 'should round 13.23445 to 4 decimals correctly');
+  t.equal(roundToFour(13), 13, 'should round 13 to 4 decimals correctly');
+  t.equal(roundToFour(1.437), 1.437, 'should round 1.437 to 4 decimals correctly');
+  t.equal(
+    roundToFour(0.09999999999999987),
+    0.1,
+    'should round 0.09999999999999987 to 4 decimals correctly'
+  );
   t.end();
 });
 
@@ -177,6 +192,30 @@ test('dataUtils -> getFormatter', t => {
     {
       input: ['yn'],
       assert: [true, 'yes']
+    },
+    {
+      input: ['L LT'],
+      assert: ['2011-04-10 00:00', '04/10/2011 12:00 AM']
+    },
+    {
+      input: ['L LT'],
+      assert: [null, '']
+    },
+    {
+      input: ['L LT'],
+      assert: [undefined, '']
+    },
+    {
+      input: ['L LT'],
+      assert: ['', '']
+    },
+    {
+      input: ['L'],
+      assert: ['2011-04-10', '04/10/2011']
+    },
+    {
+      input: ['L'],
+      assert: [null, '']
     }
   ];
 
@@ -188,5 +227,28 @@ test('dataUtils -> getFormatter', t => {
       t.equal(formatter(tc.assert[0]), tc.assert[1], 'should return correct formatter');
     }
   });
+  t.end();
+});
+
+test('dataUtils -> formatNumber', t => {
+  const TEST_CASES = [
+    {input: ['3.14'], output: '3.14', message: 'field type is not given'},
+    {input: ['3.14123'], output: '3.141', message: 'field type is not given'},
+    {input: ['3'], output: '3', message: 'field type is not given'},
+    {input: ['331', 'integer'], output: '331', message: 'format integer'},
+    {input: ['-33.1', 'integer'], output: '-33', message: 'format integer'},
+    {input: ['1234', 'integer'], output: '1,234', message: 'format integer'},
+    {input: ['123456', 'integer'], output: '123.5k', message: 'format integer'},
+    {input: ['123456.2', 'real'], output: '123.5k', message: 'format real'},
+    {input: ['123.23', 'real'], output: '123.2', message: 'format real'},
+    {input: ['12.3', 'real'], output: '12.3', message: 'format real'},
+    {input: ['12.345', 'real'], output: '12.35', message: 'format real'}
+  ];
+
+  TEST_CASES.forEach(tc => {
+    const output = formatNumber(...tc.input);
+    t.equal(output, tc.output, `formatNumber should be correct when ${tc.message}`);
+  });
+
   t.end();
 });
